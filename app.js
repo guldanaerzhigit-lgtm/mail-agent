@@ -13,7 +13,7 @@ const firebaseConfig={
 const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app);
 const $=id=>document.getElementById(id);let currentUser=null,selectedUser=null,unUsers=null,unMessages=null;
 
-function err(e){const m={"auth/invalid-email":"Неверный e-mail.","auth/invalid-credential":"Неверный e-mail или пароль.","auth/email-already-in-use":"Этот e-mail уже зарегистрирован.","auth/weak-password":"Пароль слишком простой.","auth/popup-closed-by-user":"Окно входа закрыто."};$("authError").textContent=m[e?.code]||e?.message||"Ошибка.";}
+function err(e){const m={"auth/invalid-email":"Неверный e-mail.","auth/invalid-credential":"Неверный e-mail или пароль.","auth/email-already-in-use":"Этот e-mail уже зарегистрирован.","auth/weak-password":"Пароль слишком простой.","auth/popup-closed-by-user":"Окно входа закрыто."};$("authError").textContent=m[e?.code]||e?.message||"Ошибка.";console.error(e)}
 $("signupBtn").onclick=async()=>{try{const email=$("email").value.trim(),password=$("password").value,name=$("displayName").value.trim()||email.split("@")[0];const c=await createUserWithEmailAndPassword(auth,email,password);await updateProfile(c.user,{displayName:name});await setDoc(doc(db,"users",c.user.uid),{uid:c.user.uid,name,email,status:"online",lastSeen:serverTimestamp()});}catch(e){err(e)}};
 $("loginBtn").onclick=async()=>{try{await signInWithEmailAndPassword(auth,$("email").value.trim(),$("password").value)}catch(e){err(e)}};
 $("googleBtn").onclick=async()=>{try{const c=await signInWithPopup(auth,new GoogleAuthProvider()),r=doc(db,"users",c.user.uid),s=await getDoc(r);if(!s.exists())await setDoc(r,{uid:c.user.uid,name:c.user.displayName||"User",email:c.user.email,status:"online",lastSeen:serverTimestamp()});}catch(e){err(e)}};
@@ -23,15 +23,33 @@ onAuthStateChanged(auth,async u=>{currentUser=u;if(!u){$("authScreen").classList
 $("authScreen").classList.add("hidden");$("app").classList.remove("hidden");$("myName").textContent=u.displayName||u.email.split("@")[0];$("myEmail").textContent=u.email;$("myAvatar").textContent=(u.displayName||u.email)[0].toUpperCase();
 await setDoc(doc(db,"users",u.uid),{uid:u.uid,name:u.displayName||u.email.split("@")[0],email:u.email,status:"online",lastSeen:serverTimestamp()},{merge:true});loadUsers()});
 
-function loadUsers(){if(unUsers)unUsers();unUsers=onSnapshot(query(collection(db,"users"),orderBy("name")),s=>{const t=$("searchUsers").value.toLowerCase();$("usersList").innerHTML="";s.forEach(d=>{const u=d.data();if(u.uid===currentUser.uid||!`${u.name} ${u.email}`.toLowerCase().includes(t))return;const e=document.createElement("div");e.className="user"+(selectedUser?.uid===u.uid?" active":"");e.innerHTML=`<div class="avatar">${esc((u.name||"U")[0].toUpperCase())}</div><div><b>${esc(u.name||"User")}</b><div class="${u.status==="online"?"online":"offline"}">● ${u.status==="online"?"В сети":"Не в сети"}</div></div>`;e.onclick=()=>openChat(u);$("usersList").appendChild(e)})})}
+function loadUsers(){if(unUsers)unUsers();unUsers=onSnapshot(query(collection(db,"users"),orderBy("name")),s=>{const t=$("searchUsers").value.toLowerCase();$("usersList").innerHTML="";s.forEach(d=>{const u=d.data();if(u.uid===currentUser.uid||!`${u.name} ${u.email}`.toLowerCase().includes(t))return;const e=document.createElement("div");e.className="user"+(selectedUser?.uid===u.uid?" active":"");e.innerHTML=`<div class="avatar">${esc((u.name||"U")[0].toUpperCase())}</div><div><b>${esc(u.name||"User")}</b><div class="${u.status==="online"?"online":"offline"}">● ${u.status==="online"?"В сети":"Не в сети"}</div></div>`;e.onclick=()=>openChat(u);$("usersList").appendChild(e)})},e=>console.error("Users listener:",e))}
 $("searchUsers").oninput=loadUsers;
 
 const chatId=(a,b)=>[a,b].sort().join("_");
+function renderMessage(m){const mine=m.senderId===currentUser.uid,e=document.createElement("div");e.className="msg"+(mine?" mine":"");const tm=m.createdAt?.toDate?m.createdAt.toDate().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):"";e.innerHTML=`<div class="bubble">${esc(m.text||"")}</div><div class="time">${tm}</div>`;return e}
+
 async function openChat(u){selectedUser=u;$("emptyChat").classList.add("hidden");$("chatPanel").classList.remove("hidden");$("chatName").textContent=u.name;$("chatStatus").textContent=u.status==="online"?"🟢 В сети":"⚪ Не в сети";$("chatAvatar").textContent=(u.name||"U")[0].toUpperCase();
 const id=chatId(currentUser.uid,u.uid);
-await setDoc(doc(db,"chats",id),{participants:[currentUser.uid,u.uid],updatedAt:serverTimestamp()},{merge:true});
-if(unMessages)unMessages();unMessages=onSnapshot(query(collection(db,"chats",id,"messages"),orderBy("createdAt")),s=>{$("messages").innerHTML="";s.forEach(d=>{const m=d.data(),mine=m.senderId===currentUser.uid,e=document.createElement("div");e.className="msg"+(mine?" mine":"");const tm=m.createdAt?.toDate?m.createdAt.toDate().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):"";e.innerHTML=`<div class="bubble">${esc(m.text||"")}</div><div class="time">${tm}</div>`;$("messages").appendChild(e)});$("messages").scrollTop=$("messages").scrollHeight})}
+try{await setDoc(doc(db,"chats",id),{participants:[currentUser.uid,u.uid],updatedAt:serverTimestamp()},{merge:true})}catch(e){console.error("Chat create:",e);return}
+if(unMessages)unMessages();
+unMessages=onSnapshot(query(collection(db,"chats",id,"messages"),orderBy("createdAt")),s=>{
+  $("messages").innerHTML="";
+  s.forEach(d=>$("messages").appendChild(renderMessage(d.data())));
+  $("messages").scrollTop=$("messages").scrollHeight;
+},e=>{console.error("Messages listener:",e);$("messages").innerHTML='<div style="padding:15px;color:#a40000">Не удалось загрузить сообщения. Проверьте Firestore Security Rules.</div>'});
+}
 
-$("messageForm").onsubmit=async e=>{e.preventDefault();const text=$("messageInput").value.trim();if(!text||!selectedUser)return;const id=chatId(currentUser.uid,selectedUser.uid);await addDoc(collection(db,"chats",id,"messages"),{text,senderId:currentUser.uid,receiverId:selectedUser.uid,createdAt:serverTimestamp()});await updateDoc(doc(db,"chats",id),{updatedAt:serverTimestamp()});$("messageInput").value=""};
-$("statusBtn").onclick=async()=>{const r=doc(db,"users",currentUser.uid),s=await getDoc(r),n=s.data()?.status==="online"?"offline":"online";await updateDoc(r,{status:n,lastSeen:serverTimestamp()});$("statusBtn").textContent=n==="online"?"🟢 В сети":"⚪ Не в сети"};
+$("messageForm").onsubmit=async e=>{e.preventDefault();const text=$("messageInput").value.trim();if(!text||!selectedUser)return;const id=chatId(currentUser.uid,selectedUser.uid);const input=$("messageInput"),sendBtn=e.submitter;input.disabled=true;if(sendBtn)sendBtn.disabled=true;
+try{
+  // Создаём сообщение и сразу показываем его локально через optimistic UI.
+  const local={text,senderId:currentUser.uid,receiverId:selectedUser.uid,createdAt:null};
+  $("messages").appendChild(renderMessage(local));$("messages").scrollTop=$("messages").scrollHeight;
+  await addDoc(collection(db,"chats",id,"messages"),{text,senderId:currentUser.uid,receiverId:selectedUser.uid,createdAt:serverTimestamp()});
+  await updateDoc(doc(db,"chats",id),{updatedAt:serverTimestamp()});
+  input.value="";
+}catch(e){console.error("Send message:",e);err(e);}
+finally{input.disabled=false;if(sendBtn)sendBtn.disabled=false;input.focus()}};
+
+$("statusBtn").onclick=async()=>{try{const r=doc(db,"users",currentUser.uid),s=await getDoc(r),n=s.data()?.status==="online"?"offline":"online";await updateDoc(r,{status:n,lastSeen:serverTimestamp()});$("statusBtn").textContent=n==="online"?"🟢 В сети":"⚪ Не в сети"}catch(e){console.error(e)}};
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]))}
