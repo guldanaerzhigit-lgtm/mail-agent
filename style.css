@@ -16,3 +16,29 @@
 .request button{border:0;border-radius:8px;width:28px;height:28px;background:#eafaf4;color:#15996b;font-weight:800}.request button.decline{background:#fff0f0;color:#d84b57}
 .no-requests{padding:18px 10px;color:var(--muted);font-size:11px;text-align:center}
 @media(max-width:600px){.desktop-shell{display:grid;grid-template-columns:1fr;gap:12px}.contact-window{min-height:85dvh}.chat-window{display:flex;min-height:85dvh}.chat-window .empty{min-height:220px}.chat-window .messages{min-height:180px}}
+
+/* Mobile-first chat navigation polish */
+.list-empty{padding:22px 12px;text-align:center;color:var(--muted);font-size:12px;line-height:1.6}
+#mobileBackBtn{display:none;flex:0 0 36px;width:36px;height:36px;border:0;border-radius:11px;background:var(--blue-light);color:var(--blue);font-size:27px;line-height:1}
+@media(max-width:600px){
+  .app{padding:0;min-height:100dvh}
+  .desktop-shell{display:flex;flex-direction:column;gap:0;width:100%;min-height:100dvh}
+  .contact-window{display:flex;width:100%;min-height:100dvh;border-radius:0}
+  .chat-window{display:none;width:100%;min-height:100dvh;border-radius:0}
+  .app.mobile-chat .contact-window{display:none}
+  .app.mobile-chat .chat-window{display:flex}
+  .app.mobile-chat #mobileBackBtn{display:block}
+  .chat-window>.titlebar{height:42px}
+  .chat-head{gap:9px;padding:10px}
+  .chat-head .avatar{width:38px;height:38px;border-radius:13px}
+  .chat-title b{font-size:13px}
+  .friend-btn{max-width:105px;padding:8px;font-size:10px}
+  .chat-tools{padding:8px 10px}
+  .messages{flex:1;min-height:0;padding:14px 10px}
+  .msg .bubble{max-width:82vw}
+  .composer{padding:9px;gap:5px}
+  .composer input:not([type=file]){padding:11px 10px}
+  .composer button[type=submit]{padding:10px 11px}
+  .composer .icon-btn{width:34px;height:34px}
+  .contact-bottom{position:sticky;bottom:0;background:#fff}
+}
