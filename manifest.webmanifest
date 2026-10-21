@@ -1,1 +1,9 @@
-{"name":"Mail Agent","short_name":"Mail Agent","start_url":"./","display":"standalone","background_color":"#f8fbfd","theme_color":"#1683ff","icons":[]}
+{
+  "name": "Agent Web",
+  "short_name": "Agent",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#edf3fb",
+  "theme_color": "#2878ee",
+  "description": "Современный веб-мессенджер"
+}
